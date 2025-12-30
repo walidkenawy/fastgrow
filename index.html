@@ -50,5 +50,12 @@
 </head>
 <body class="bg-stone-50 text-stone-900">
   <div id="root"></div>
+
+  <!-- 
+    CRITICAL FIX: Loads the React application entry point. 
+    Without this script tag, the bundled JavaScript is never executed, 
+    resulting in a blank white page on deployment.
+  -->
+  <script type="module" src="/index.tsx"></script>
 </body>
 </html>
