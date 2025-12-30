@@ -1,0 +1,8 @@
+{
+  "name": "EquiPro  Premium Equine Nutrition",
+  "description": "A high-end platform for elite horse nutrition featuring an AI-driven diet consultant, premium supplement catalog, and performance tracking.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
