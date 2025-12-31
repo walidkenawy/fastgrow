@@ -1,61 +1,60 @@
-
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <!-- Primary SEO -->
-  <title>Nobel Spirit® | Elite Equine Performance Technology & Molecular Nutrition</title>
-  <meta name="description" content="Nobel Spirit® is the international benchmark for equine performance technology. Discover our lab-verified molecular nutrition protocols, AI-driven diet consultancy, and elite supplement archives.">
-  <meta name="keywords" content="equine nutrition, horse performance, molecular horse feed, Nobel Spirit, equine bio-science, performance supplements, dressage nutrition, show jumping fuel">
-  <meta name="author" content="Nobel Spirit Performance Laboratories">
-  <link rel="canonical" href="https://nobelspirit.pl" />
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Social Media SEO (Open Graph) -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://nobelspirit.pl">
-  <meta property="og:title" content="Nobel Spirit® | Elite Equine Performance Technology">
-  <meta property="og:description" content="Synthesizing victory through precision molecular engineering. Explore our performance protocols.">
-  <meta property="og:image" content="https://images.unsplash.com/photo-1598974357851-984447633303?auto=format&fit=crop&q=80&w=1200">
+    <!-- Primary SEO -->
+    <title>Nobel Spirit® | Elite Equine Performance Technology & Molecular Nutrition</title>
+    <meta name="description" content="Nobel Spirit® is the international benchmark for equine performance technology. Discover our lab-verified molecular nutrition protocols, AI-driven diet consultancy, and elite supplement archives." />
+    <meta name="keywords" content="equine nutrition, horse performance, molecular horse feed, Nobel Spirit, equine bio-science, performance supplements, dressage nutrition, show jumping fuel" />
+    <meta name="author" content="Nobel Spirit Performance Laboratories" />
+    <link rel="canonical" href="https://nobelspirit.pl" />
 
-  <!-- X/Twitter SEO -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Nobel Spirit® | Equine Performance Labs">
-  <meta name="twitter:description" content="The gold standard in equine performance technology and nutritional protocols.">
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://nobelspirit.pl" />
+    <meta property="og:title" content="Nobel Spirit® | Elite Equine Performance Technology" />
+    <meta property="og:description" content="Synthesizing victory through precision molecular engineering. Explore our performance protocols." />
+    <meta property="og:image" content="https://images.unsplash.com/photo-1598974357851-984447633303?auto=format&fit=crop&q=80&w=1200" />
 
-  <!-- Fonts -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;900&display=swap" rel="stylesheet">
-  
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-    h1, h2, h3, .serif {
-      font-family: 'Playfair Display', serif;
-    }
-  </style>
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Nobel Spirit® | Equine Performance Labs" />
+    <meta name="twitter:description" content="The gold standard in equine performance technology and nutritional protocols." />
 
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
-  }
-}
-</script>
-</head>
-<body class="bg-stone-50 text-stone-900">
-  <div id="root"></div>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- 
-    CRITICAL FIX: Loads the React application entry point. 
-    Without this script tag, the bundled JavaScript is never executed, 
-    resulting in a blank white page on deployment.
-  -->
-  <script type="module" src="/index.tsx"></script>
-</body>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;900&display=swap" rel="stylesheet" />
+
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      h1, h2, h3, .serif {
+        font-family: 'Playfair Display', serif;
+      }
+    </style>
+
+    <!-- Import Map for ESM (React & Gemini from CDN) -->
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@^19.2.3",
+          "react-dom": "https://esm.sh/react-dom@^19.2.3",
+          "@google/generative-ai": "https://esm.sh/@google/generative-ai@^1.34.0"
+        }
+      }
+    </script>
+  </head>
+
+  <body class="bg-stone-50 text-stone-900">
+    <div id="root"></div>
+
+    <!-- Vite Entry Point – Works in both dev and production (built) -->
+    <script type="module" src="/src/index.tsx"></script>
+    <!-- If your entry file is main.tsx instead, change to: /src/main.tsx -->
+  </body>
 </html>
