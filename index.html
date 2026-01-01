@@ -1,61 +1,79 @@
+
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Primary SEO & Business Identity -->
+  <title>Nobel Spirit® | Elite Equine Performance Technology & Molecular Nutrition</title>
+  <meta name="description" content="Nobel Spirit® is the international benchmark for equine performance technology. Discover our lab-verified molecular nutrition protocols, AI-driven diet consultancy, and elite supplement archives.">
+  <meta name="keywords" content="equine nutrition, horse performance, molecular horse feed, Nobel Spirit, equine bio-science, performance supplements, dressage nutrition, show jumping fuel, horse events 2026">
+  <meta name="author" content="Nobel Spirit Performance Laboratories">
+  <link rel="canonical" href="https://nobelspirit.pl" />
 
-    <!-- Primary SEO -->
-    <title>Nobel Spirit® | Elite Equine Performance Technology & Molecular Nutrition</title>
-    <meta name="description" content="Nobel Spirit® is the international benchmark for equine performance technology. Discover our lab-verified molecular nutrition protocols, AI-driven diet consultancy, and elite supplement archives." />
-    <meta name="keywords" content="equine nutrition, horse performance, molecular horse feed, Nobel Spirit, equine bio-science, performance supplements, dressage nutrition, show jumping fuel" />
-    <meta name="author" content="Nobel Spirit Performance Laboratories" />
-    <link rel="canonical" href="https://nobelspirit.pl" />
+  <!-- Social Media & Global Sharing (Open Graph) -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nobelspirit.pl">
+  <meta property="og:title" content="Nobel Spirit® | Elite Equine Performance Technology">
+  <meta property="og:description" content="Synthesizing victory through precision molecular engineering. Explore our global tournament archive and performance protocols.">
+  <meta property="og:image" content="https://images.unsplash.com/photo-1598974357851-984447633303?auto=format&fit=crop&q=80&w=1200">
 
-    <!-- Open Graph -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://nobelspirit.pl" />
-    <meta property="og:title" content="Nobel Spirit® | Elite Equine Performance Technology" />
-    <meta property="og:description" content="Synthesizing victory through precision molecular engineering. Explore our performance protocols." />
-    <meta property="og:image" content="https://images.unsplash.com/photo-1598974357851-984447633303?auto=format&fit=crop&q=80&w=1200" />
+  <!-- X/Twitter SEO -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Nobel Spirit® | Global Equine Performance Labs">
+  <meta name="twitter:description" content="The gold standard in equine performance technology and nutritional protocols. Engineering victory for the international elite.">
 
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Nobel Spirit® | Equine Performance Labs" />
-    <meta name="twitter:description" content="The gold standard in equine performance technology and nutritional protocols." />
+  <!-- Style & Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;900&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+    h1, h2, h3, .serif {
+      font-family: 'Playfair Display', serif;
+    }
+    /* Luxury Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f5f5f4;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #064e3b; /* Emerald 950 */
+      border: 2px solid #f5f5f4;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #D4AF37; /* Gold */
+    }
+  </style>
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react/": "https://esm.sh/react@19.0.0/",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/": "https://esm.sh/react-dom@19.0.0/",
+    "@google/genai": "https://esm.sh/@google/genai@1.3.0"
+  }
+}
+</script>
+</head>
+<body class="bg-stone-50 text-stone-900 selection:bg-[#D4AF37] selection:text-emerald-950">
+  <div id="root"></div>
 
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;900&display=swap" rel="stylesheet" />
-
-    <style>
-      body {
-        font-family: 'Inter', sans-serif;
-      }
-      h1, h2, h3, .serif {
-        font-family: 'Playfair Display', serif;
-      }
-    </style>
-
-    <!-- Import Map – loads React and Gemini from CDN (no npm needed) -->
-    <script type="importmap">
-      {
-        "imports": {
-          "react": "https://esm.sh/react@18.2.0",
-          "react-dom": "https://esm.sh/react-dom@18.2.0",
-          "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-          "@google/generative-ai": "https://esm.sh/@google/generative-ai"
-        }
-      }
-    </script>
-  </head>
-
-  <body class="bg-stone-50 text-stone-900 min-h-screen">
-    <div id="root"></div>
-
-    <!-- Entry point – change only if your file name is different -->
-    <script type="module" src="/index.tsx"></script>
-    <!-- If your main file is named main.tsx or App.tsx, change to: /main.tsx or /App.tsx -->
-  </body>
+  <!-- 
+    CRITICAL DEPLOYMENT FIX:
+    The path './index.tsx' ensures the module loader finds the entry point relative 
+    to the current directory, which is essential for Vite builds on Vercel to 
+    prevent 'blank page' issues caused by root path misconfigurations.
+  -->
+  <script type="module" src="./index.tsx"></script>
+</body>
 </html>

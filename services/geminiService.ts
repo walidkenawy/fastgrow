@@ -1,383 +1,176 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { PRODUCTS } from "../constants";
 
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
- * Generates deep scientific intelligence for a specific product.
+ * THE NOBEL SPIRIT MASTER DESIGNER - RENDER PROTOCOL 9.0
+ * Generates ultra-realistic 3D product mockups following the "NubaEqui" aesthetic.
+ * Automatically saves and uses the current image as a base for refinements.
  */
+export const generateAssetMockup = async (
+  title: string, 
+  category: string, 
+  type: 'product' | 'blog' | 'event' = 'product',
+  subType?: string,
+  baseImage?: string
+) => {
+  const ai = getAI();
+  
+  const colorMapping: Record<string, string> = {
+    Performance: 'Deep Royal Blue and Gold gradient',
+    Digestive: 'Green herbal gradient matrix with White',
+    Orthopedic: 'Deep Violet and Platinum metallic accents',
+    Metabolic: 'Warm Amber and Charcoal gradient',
+    Grooming: 'Soft Satin Rose and Pearl',
+    Nutrition: 'Clinical Teal and White',
+    Veterinary: 'Deep Navy and Surgical Steel'
+  };
+
+  const colorScheme = colorMapping[category] || 'Minimalist Monochrome';
+  
+  let prompt = "";
+  if (type === 'product') {
+    prompt = `
+      COMMAND: Create a realistic 3D product mockup of a standing equine/horse feed supplement bag.
+      STYLE: Professional luxury packaging photography, studio lighting, front view only.
+      ENVIRONMENT: Plain white background (#FFFFFF) with a subtle, sophisticated drop shadow.
+      OBJECT: A tall rectangular sealed plastic or paper sack with a premium zip-top or folded top finish.
+      DOMINANT COLOR SCHEME: ${colorScheme}.
+      BRANDING: 
+      - Elegant script logo at the top: "Nobel Spirit" with a stylized, minimalist horse head silhouette.
+      - Main Bold Label Text: "NOBEL ELITE: ${title.toUpperCase()} PROTOCOL".
+      GRAPHICS: Include subtle running horse silhouettes in the background of the bag design and benefit icons (e.g., joints, hoof, or muscle icons).
+      BOTTOM TEXT: "Net Weight 20 kg" or "15 kg" in clean sans-serif typography.
+      AESTHETICS: High detail, photorealistic 8k render, pharmaceutical-grade.
+    `;
+    
+    // If a base image is provided, instruct Gemini to refine the EXISTING branded asset
+    if (baseImage && baseImage.startsWith('data:image')) {
+       prompt += `\nREFINEMENT PROTOCOL: Use the attached image as the PRECISE base image. Do not change the layout. Enhance the material texture, lighting depth, and typographical clarity. Maintain the existing branding but make it look more high-end and physical.`;
+    }
+  } else if (type === 'blog') {
+    prompt = `
+      COMMAND: Generate a cinematic studio photograph of an elite equine scientific journal.
+      TITLE ON COVER: "${title}".
+      ENVIRONMENT: A high-end research facility background with soft-focus laboratory glassware.
+      STYLE: Modern clinical science, 8k, luxury palette of ${colorScheme}.
+    `;
+  } else {
+    prompt = `
+      COMMAND: Generate a cinematic architectural render of a world-class equestrian pavilion.
+      TEXT ON ENTRANCE: "NOBEL SPIRIT: ${title}".
+      ENVIRONMENT: Modern, sleek international competition hub at sunset.
+      STYLE: Luxury architectural photography, palette of ${colorScheme}.
+    `;
+  }
+
+  try {
+    const parts: any[] = [{ text: prompt }];
+    
+    // Multi-part input: Pass the base image if it's already a generated mockup (data URL)
+    if (baseImage && baseImage.startsWith('data:')) {
+      const mimeType = baseImage.split(';')[0].split(':')[1];
+      const data = baseImage.split(',')[1];
+      parts.unshift({
+        inlineData: {
+          mimeType: mimeType,
+          data: data
+        }
+      });
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: { parts: parts },
+      config: { 
+        imageConfig: { 
+          aspectRatio: type === 'product' ? "1:1" : "16:9" 
+        } 
+      }
+    });
+
+    if (!response.candidates?.[0]?.content?.parts) throw new Error("Synthesis failed.");
+
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+    return '';
+  } catch (error) {
+    console.error("Synthesis Error:", error);
+    return '';
+  }
+};
+
+export const generateProductMockup = (name: string, cat: string, subType?: string, baseImage?: string) => 
+  generateAssetMockup(name, cat, 'product', subType, baseImage);
+
+export const generateEventVisual = (title: string, loc: string, cat: string) => 
+  generateAssetMockup(`${title} @ ${loc}`, cat, 'event');
+
+export const generateBlogVisual = (title: string, sum: string, cat: string) => 
+  generateAssetMockup(title, cat, 'blog');
+
+// Analysis and intelligence functions
 export const getProductIntelligence = async (product: any) => {
   const ai = getAI();
-  const model = 'gemini-3-flash-preview';
-
-  const systemInstruction = `
-    You are an Elite Equine Molecular Biologist and SEO Strategist for Nobel Spirit®. 
-    Analyze the provided equine supplement/feed product and generate a "Molecular Technical Dossier".
-    
-    The output must be high-end, clinical, and scientifically dense.
-    Incorporate the product's specific ingredients and benefits into the analysis.
-    
-    Structure your response as a JSON object with:
-    - "abstract": A professional 2-sentence executive summary of the protocol.
-    - "analysis": A detailed 3-paragraph scientific breakdown of how the ingredients (like ${product.formula}) interact with equine physiology.
-    - "implications": 4 bullet points on competitive advantages and performance outcomes.
-    - "seo": {
-        "metaDescription": "A 160-character SEO meta description optimized for horse performance keywords.",
-        "keywords": ["List", "of", "high-value", "niche", "keywords"],
-        "h1Header": "An SEO-optimized scientific title for the product."
-      }
-  `;
-
   try {
     const response = await ai.models.generateContent({
-      model,
-      contents: `Product Name: ${product.name}\nCategory: ${product.category}\nBenefits: ${product.benefits.join(', ')}\nFormula: ${product.formula}\nIngredients: ${JSON.stringify(product.ingredientDetails)}`,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            abstract: { type: Type.STRING },
-            analysis: { type: Type.STRING },
-            implications: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
-            seo: {
-              type: Type.OBJECT,
-              properties: {
-                metaDescription: { type: Type.STRING },
-                keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-                h1Header: { type: Type.STRING }
-              },
-              required: ["metaDescription", "keywords", "h1Header"]
-            }
-          },
-          required: ["abstract", "analysis", "implications", "seo"]
-        }
-      }
+      model: 'gemini-3-pro-preview',
+      contents: `Product: ${product.name}. Generate technical dossier JSON: abstract, analysis, implications, seo.`,
+      config: { responseMimeType: "application/json" }
     });
-
-    return JSON.parse(response.text);
-  } catch (error) {
-    console.error("Product Intelligence Error:", error);
-    throw error;
-  }
-};
-
-/**
- * Translates an array of objects while preserving their keys.
- */
-export const translateContentBatch = async (items: any[], targetLang: string, type: 'product' | 'blog' | 'event') => {
-  const ai = getAI();
-  const model = 'gemini-3-flash-preview';
-
-  const systemInstruction = `
-    You are an expert translator for Nobel Spirit®, a luxury equine performance brand.
-    Translate the provided JSON array of ${type}s into ${targetLang}.
-    
-    CRITICAL RULES:
-    1. DO NOT translate keys.
-    2. Maintain the same array length.
-    3. Use a high-end, professional, and scientific tone.
-    4. Translate ALL user-facing strings (names, descriptions, benefits, categories, summaries).
-    5. Return ONLY the valid JSON array. No markdown, no explanations.
-  `;
-
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: JSON.stringify(items),
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-      }
-    });
-
-    const translated = JSON.parse(response.text);
-    return translated;
-  } catch (error) {
-    console.error(`Translation error for ${type}:`, error);
-    return items; 
-  }
-};
-
-export const translateUISet = async (labels: Record<string, string>, targetLang: string) => {
-  const ai = getAI();
-  const model = 'gemini-3-flash-preview';
-
-  const systemInstruction = `
-    Translate the following UI labels into ${targetLang}. 
-    Maintain a luxury brand tone. 
-    Return ONLY a JSON object with the exact same keys.
-  `;
-
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: JSON.stringify(labels),
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-      }
-    });
-    return JSON.parse(response.text);
-  } catch (error) {
-    return labels;
-  }
+    return JSON.parse(response.text || '{}');
+  } catch (err) { return {}; }
 };
 
 export const getDeepIntelligence = async (topic: string, context: string, category: string) => {
   const ai = getAI();
-  const model = 'gemini-3-flash-preview';
-
-  const systemInstruction = `
-    You are an Elite Equine Research Strategist for Nobel Spirit®. 
-    Your task is to generate a comprehensive "Deep Intelligence Dossier" for a performance topic or international event.
-    
-    The output must be high-end, scientific, and SEO-optimized.
-    Structure your response as a JSON object with:
-    - "abstract": A professional 2-sentence summary.
-    - "analysis": A detailed 3-paragraph scientific or strategic breakdown.
-    - "implications": 3-4 bullet points on how this affects high-stakes equine performance.
-    - "registrationRoadmap": (FOR EVENTS ONLY) A 2-sentence guide on how elite stables should approach registration and logistics for this event.
-    - "seo": {
-        "metaDescription": "A 160-character SEO meta description.",
-        "keywords": ["List", "of", "high-value", "keywords"],
-        "h1Header": "An SEO-optimized h1 title."
-      }
-  `;
-
   try {
     const response = await ai.models.generateContent({
-      model,
-      contents: `Topic: ${topic}\nContext: ${context}\nCategory: ${category}`,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            abstract: { type: Type.STRING },
-            analysis: { type: Type.STRING },
-            implications: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
-            registrationRoadmap: { type: Type.STRING },
-            seo: {
-              type: Type.OBJECT,
-              properties: {
-                metaDescription: { type: Type.STRING },
-                keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-                h1Header: { type: Type.STRING }
-              },
-              required: ["metaDescription", "keywords", "h1Header"]
-            }
-          },
-          required: ["abstract", "analysis", "implications", "seo"]
-        }
-      }
+      model: 'gemini-3-pro-preview',
+      contents: `Topic: ${topic}. JSON: abstract, analysis, implications, seo.`,
+      config: { responseMimeType: "application/json" }
     });
-
-    return JSON.parse(response.text);
-  } catch (error) {
-    console.error("Deep Intelligence Error:", error);
-    throw error;
-  }
+    return JSON.parse(response.text || '{}');
+  } catch (err) { return {}; }
 };
 
 export const getDietaryAdvice = async (horseData: string) => {
   const ai = getAI();
-  const model = 'gemini-3-flash-preview';
-  
-  const systemInstruction = `
-    You are an expert Equine Nutritionist for Nobel Spirit, a premium horse performance company.
-    Based on the user's description of their horse, provide a professional dietary recommendation.
-    
-    Available products in our catalog:
-    ${PRODUCTS.map(p => `- ${p.name}: ${p.description}`).join('\n')}
-
-    Your response must be in JSON format with the following structure:
-    {
-      "advice": "General summary and reasoning for the diet.",
-      "nutritionalGoals": ["Goal 1", "Goal 2"],
-      "recommendedProductIds": ["id1", "id2"]
-    }
-  `;
-
   try {
     const response = await ai.models.generateContent({
-      model,
-      contents: `Horse Details: ${horseData}`,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            advice: { type: Type.STRING },
-            nutritionalGoals: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
-            recommendedProductIds: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
-          },
-          required: ["advice", "nutritionalGoals", "recommendedProductIds"]
-        }
-      }
+      model: 'gemini-3-pro-preview',
+      contents: `Assess: ${horseData}. Return JSON with advice, nutritionalGoals, recommendedProductIds.`,
+      config: { responseMimeType: "application/json" }
     });
+    return JSON.parse(response.text || '{}');
+  } catch (err) { throw err; }
+};
 
-    return JSON.parse(response.text);
-  } catch (error) {
-    console.error("Gemini Error:", error);
-    throw error;
-  }
+export const translateContentBatch = async (items: any[], targetLang: string, type: string) => {
+  const ai = getAI();
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: JSON.stringify(items),
+      config: { systemInstruction: `Translate to ${targetLang}. JSON only.`, responseMimeType: "application/json" }
+    });
+    return JSON.parse(response.text || '[]');
+  } catch (err) { return items; }
 };
 
 export const getExchangeRates = async () => {
   const ai = getAI();
-  const prompt = `Provide the current approximate exchange rates for the following currencies relative to 1 Polish Zloty (PLN): USD, EUR, GBP, SAR, AED.
-  Return only a JSON object where keys are currency codes and values are the conversion factors.
-  Example: {"USD": 0.25, "EUR": 0.23}`;
-
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            USD: { type: Type.NUMBER },
-            EUR: { type: Type.NUMBER },
-            GBP: { type: Type.NUMBER },
-            SAR: { type: Type.NUMBER },
-            AED: { type: Type.NUMBER },
-            PLN: { type: Type.NUMBER }
-          }
-        }
-      }
+      contents: `Exchange rates for USD, EUR, GBP, SAR, AED vs 1 PLN. JSON only.`,
+      config: { responseMimeType: "application/json" }
     });
-    const rates = JSON.parse(response.text);
-    return { ...rates, PLN: 1 };
-  } catch (error) {
-    return { USD: 0.25, EUR: 0.23, GBP: 0.20, SAR: 0.94, AED: 0.92, PLN: 1 };
-  }
-};
-
-export const generateProductMockup = async (
-  productName: string, 
-  category: string, 
-  variation: 'full' | 'horse' | 'background' = 'full',
-  base64Image?: string,
-  specifics?: string
-) => {
-  const ai = getAI();
-  
-  const productColors = {
-    'Herbal Mash': 'Green herbal gradient',
-    'Classic Mash': 'Warm orange gradient',
-    'Digestive Mash': 'Soft yellow gradient',
-    'Performance': 'Metallic gold and black',
-    'Digestive': 'Vibrant lime green',
-    'Orthopedic': 'Deep royal blue',
-    'Metabolic': 'Bright orange-copper',
-    'Grooming': 'Soft lavender-pink'
-  };
-
-  const accentColor = productColors[productName as keyof typeof productColors] || 
-                      productColors[category as keyof typeof productColors] || 
-                      'Metallic gold';
-
-  const prompt = `
-    STRICT PRODUCT PACKAGING MOCKUP RULES:
-    - TASK: Create/Edit a REALISTIC PRODUCT PACKAGING MOCKUP. 
-    - SUBJECT: A tall, standing equine feed bag photographed in a professional studio.
-    - ENVIRONMENT: Pure white background with a soft shadow.
-    - BRANDING: "Nobel Spirit" logo clearly printed.
-    - PRODUCT NAME: "Nobel Spirit ${productName}" prominently displayed.
-    - ACCENT: ${accentColor} theme.
-  `;
-
-  const contents: any = { parts: [{ text: prompt }] };
-
-  if (base64Image && base64Image.startsWith('data:image')) {
-    contents.parts.unshift({
-      inlineData: {
-        data: base64Image.split(',')[1],
-        mimeType: 'image/png'
-      }
-    });
-  }
-
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents,
-      config: { imageConfig: { aspectRatio: "1:1" } }
-    });
-
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
-    }
-    throw new Error("No image data returned");
-  } catch (error) {
-    console.error("Image Generation Error:", error);
-    throw error;
-  }
-};
-
-export const generateEventVisual = async (eventTitle: string, location: string, category: string) => {
-  const ai = getAI();
-  const prompt = `
-    Cinematic promotional poster for an elite equestrian event: ${eventTitle} in ${location}. 
-    Category: ${category}. 
-    Style: Ultra-luxury photography, "old money" aesthetic, majestic performance horse in a high-tech arena or historic venue. 
-    Mood: Prestige, high-stakes competition, cinematic lighting.
-  `;
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: prompt,
-      config: { imageConfig: { aspectRatio: "16:9" } }
-    });
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
-    }
-    throw new Error("No image returned");
-  } catch (error) {
-    console.error("Event Image Error:", error);
-    throw error;
-  }
-};
-
-export const generateBlogVisual = async (title: string, summary: string, category: string) => {
-  const ai = getAI();
-  const prompt = `
-    High-fidelity scientific/artistic photograph for an elite research publication about: ${title}. 
-    Summary focus: ${summary}. 
-    Style: Premium, clinical, advanced bio-science. 
-    Visuals: Molecular structures, high-tech equine laboratories, or abstract performance bio-data visualization.
-  `;
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: prompt,
-      config: { imageConfig: { aspectRatio: "16:9" } }
-    });
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
-    }
-    throw new Error("No blog image returned");
-  } catch (error) {
-    console.error("Blog Image Error:", error);
-    throw error;
-  }
+    return JSON.parse(response.text || '{}');
+  } catch (err) { return { USD: 0.25, EUR: 0.23, PLN: 1 }; }
 };

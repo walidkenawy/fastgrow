@@ -1,6 +1,7 @@
 
 export interface Product {
   id: string;
+  sku: string; // Added for barcode generation
   name: string;
   category: 'Performance' | 'Digestive' | 'Orthopedic' | 'Metabolic' | 'Grooming';
   shortDescription: string;

@@ -6,16 +6,16 @@ import ProductCard from './ProductCard';
 
 interface AIDietConsultantProps {
   onSelectProduct: (id: string) => void;
-  // Updated signature to match addToCart in App.tsx
   onAddToCart: (product: Product, quantity?: number) => void;
+  onUpdateProductImage: (id: string, newImage: string) => void;
   formatPrice: (price: number) => string;
-  // Added missing products prop as reported in the TypeScript error
   products: Product[];
 }
 
 const AIDietConsultant: React.FC<AIDietConsultantProps> = ({ 
   onSelectProduct, 
   onAddToCart, 
+  onUpdateProductImage,
   formatPrice, 
   products 
 }) => {
@@ -34,7 +34,6 @@ const AIDietConsultant: React.FC<AIDietConsultantProps> = ({
     setLoading(true);
     try {
       const data = await getDietaryAdvice(userInput);
-      // Use the provided products list (which may be translated) instead of the base constants
       const recommendedProducts = products.filter(p => data.recommendedProductIds.includes(p.id));
       setResult({
         advice: data.advice,
@@ -51,7 +50,6 @@ const AIDietConsultant: React.FC<AIDietConsultantProps> = ({
   return (
     <div className="max-w-4xl mx-auto px-4 py-16">
       <div className="text-center mb-12">
-        {/* Fixed typo in className: text- stone-900 to text-stone-900 */}
         <h2 className="text-5xl font-bold text-stone-900 mb-4 tracking-tighter">Precision Performance Advisor</h2>
         <p className="text-stone-600 max-w-2xl mx-auto italic font-serif text-lg">
           Describe your horse's condition, activity level, and performance goals. 
@@ -123,6 +121,7 @@ const AIDietConsultant: React.FC<AIDietConsultantProps> = ({
                     product={product} 
                     onClick={onSelectProduct} 
                     onAddToCart={onAddToCart} 
+                    onUpdateImage={onUpdateProductImage}
                     formatPrice={formatPrice} 
                   />
                 ))}
