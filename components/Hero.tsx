@@ -4,11 +4,12 @@ import { generateEventVisual } from '../services/geminiService';
 
 interface HeroProps {
   onStart: () => void;
+  onExplore: () => void;
   onUpdateImage?: (id: string, newImage: string) => void;
   currentImage?: string;
 }
 
-const Hero: React.FC<HeroProps> = ({ onStart, onUpdateImage, currentImage }) => {
+const Hero: React.FC<HeroProps> = ({ onStart, onExplore, onUpdateImage, currentImage }) => {
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const heroImage = currentImage || "https://images.unsplash.com/photo-1598974357851-984447633303?auto=format&fit=crop&q=80&w=2000";
 
@@ -62,20 +63,29 @@ const Hero: React.FC<HeroProps> = ({ onStart, onUpdateImage, currentImage }) => 
             Engineering the future of equine performance through molecular precision. Nobel Spirit®: The golden standard for the international elite.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-6">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-6 items-start">
+            <button 
+              onClick={onExplore}
+              className="px-12 py-5 bg-[#D4AF37] text-emerald-950 rounded-full font-black text-xs uppercase tracking-[0.2em] hover:brightness-110 transition-all shadow-2xl hover:-translate-y-1 flex items-center gap-3"
+            >
+              Explore Molecular Archive
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+            </button>
+            
             <button 
               onClick={onStart}
-              className="px-12 py-5 bg-[#D4AF37] text-emerald-950 rounded-full font-black text-xs uppercase tracking-[0.2em] hover:brightness-110 transition-all shadow-2xl hover:-translate-y-1"
+              className="px-10 py-5 bg-emerald-900/40 text-[#D4AF37] border border-[#D4AF37]/30 rounded-full font-black text-xs uppercase tracking-[0.2em] backdrop-blur-md hover:bg-emerald-900/60 transition-all flex items-center gap-3"
             >
               Analyze Biometrics
             </button>
+
             <button 
               onClick={handleSynthesizeVision}
               disabled={isSynthesizing}
-              className="px-12 py-5 bg-white/10 text-white rounded-full font-black text-xs uppercase tracking-[0.2em] backdrop-blur-md hover:bg-white/20 transition-all border border-white/20 flex items-center gap-3"
+              className="px-10 py-5 bg-white/5 text-white rounded-full font-black text-[10px] uppercase tracking-[0.2em] backdrop-blur-md hover:bg-white/10 transition-all border border-white/10 flex items-center gap-3 mt-2 sm:mt-0"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a2 2 0 00-1.96 1.414l-.722 2.166a2 2 0 00.547 2.155l1.638 1.638a2 2 0 002.155.547l2.166-.722a2 2 0 001.414-1.96l-.477-2.387a2 2 0 00-.547-1.022z" /></svg>
-              Synthesize Brand vision
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              Synthesize Brand Vision
             </button>
           </div>
         </div>

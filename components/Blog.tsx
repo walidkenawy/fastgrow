@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { generateBlogVisual, getDeepIntelligence } from '../services/geminiService';
 import { BlogPost } from '../types';
+import { downloadCSV } from '../services/csvService';
 import IntelligenceDrawer from './IntelligenceDrawer';
 
 interface BlogProps {
@@ -15,7 +16,6 @@ const Blog: React.FC<BlogProps> = ({ blogs, onUpdateImage }) => {
   const [visibleCount, setVisibleCount] = useState(12);
   const [isGenerating, setIsGenerating] = useState<Record<string, boolean>>({});
   
-  // Intelligence State
   const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
   const [isSyncingIntelligence, setIsSyncingIntelligence] = useState(false);
   const [intelligenceData, setIntelligenceData] = useState<any>(null);
@@ -31,20 +31,15 @@ const Blog: React.FC<BlogProps> = ({ blogs, onUpdateImage }) => {
 
   const displayedBlogs = filteredBlogs.slice(0, visibleCount);
 
-  /**
-   * UNIVERSAL BRAND MANIFESTATION ENGINE
-   * Automatically synthesizes blog visuals as they enter the viewport.
-   * If a mockup already exists (data URL), it uses it as a base for higher fidelity.
-   */
+  const exportResearch = () => {
+    downloadCSV(blogs, "NobelSpirit_Research_Archive");
+  };
+
   useEffect(() => {
     const autoSynthesize = async () => {
-      // Prioritize items that haven't been synthesized at all (no data URL)
-      // or items that could benefit from refinement.
       const targets = displayedBlogs.filter(b => !b.image.startsWith('data:image')).slice(0, 4);
-      
       for (const post of targets) {
         if (isGenerating[post.id]) continue;
-        
         setIsGenerating(prev => ({ ...prev, [post.id]: true }));
         try {
           const result = await generateBlogVisual(post.title, post.summary, post.category);
@@ -56,7 +51,6 @@ const Blog: React.FC<BlogProps> = ({ blogs, onUpdateImage }) => {
         }
       }
     };
-    
     const t = setTimeout(autoSynthesize, 800);
     return () => clearTimeout(t);
   }, [displayedBlogs, onUpdateImage]);
@@ -82,9 +76,15 @@ const Blog: React.FC<BlogProps> = ({ blogs, onUpdateImage }) => {
           <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=2400" className="w-full h-full object-cover opacity-20 grayscale" />
           <div className="absolute inset-0 bg-gradient-to-t from-stone-50 to-transparent" />
         </div>
-        <div className="relative z-10 max-w-7xl mx-auto px-6 w-full">
-          <h1 className="text-8xl font-black text-white tracking-tighter leading-none mb-4">RESEARCH <span className="text-[#D4AF37] italic font-serif">ARCHIVE</span></h1>
-          <p className="text-xl text-stone-300 font-serif italic max-w-2xl">Precision molecular insights for the global equestrian elite.</p>
+        <div className="relative z-10 max-w-7xl mx-auto px-6 w-full flex flex-col md:flex-row items-center justify-between gap-12">
+          <div>
+            <h1 className="text-8xl font-black text-white tracking-tighter leading-none mb-4">RESEARCH <span className="text-[#D4AF37] italic font-serif">ARCHIVE</span></h1>
+            <p className="text-xl text-stone-300 font-serif italic max-w-2xl">Precision molecular insights for the global equestrian elite.</p>
+          </div>
+          <button onClick={exportResearch} className="px-10 py-5 bg-[#D4AF37] text-emerald-950 rounded-full font-black text-[10px] uppercase tracking-widest shadow-2xl hover:brightness-110 transition-all flex items-center gap-3">
+             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="2.5"/></svg>
+             Download Research List (CSV)
+          </button>
         </div>
       </div>
 

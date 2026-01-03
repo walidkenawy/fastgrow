@@ -3,24 +3,27 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Product } from '../types';
 import ProductCard from './ProductCard';
 import { generateProductMockup } from '../services/geminiService';
+import { downloadCSV } from '../services/csvService';
+import { clearImages } from '../services/dbService';
 
 interface CatalogProps {
   onSelectProduct: (id: string) => void;
   onAddToCart: (product: Product, quantity: number) => void;
   onUpdateProductImage: (id: string, newImage: string) => void;
+  onInquiry?: (product: Product) => void;
   formatPrice: (price: number) => string;
   products: Product[];
 }
 
-const Catalog: React.FC<CatalogProps> = ({ onSelectProduct, onAddToCart, onUpdateProductImage, formatPrice, products }) => {
+const Catalog: React.FC<CatalogProps> = ({ onSelectProduct, onAddToCart, onUpdateProductImage, onInquiry, formatPrice, products }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [visibleCount, setVisibleCount] = useState(24);
   
-  // Mass Synthesis State
-  const [isMassSynthesizing, setIsMassSynthesizing] = useState(false);
-  const [synthesisProgress, setSynthesisProgress] = useState({ current: 0, total: 0, currentName: '' });
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restorationProgress, setRestorationProgress] = useState({ current: 0, total: 0, currentName: '', phase: 'Initializing' });
   const [shouldStop, setShouldStop] = useState(false);
+  const [quotaError, setQuotaError] = useState<string | null>(null);
 
   const categories = ['All', 'Performance', 'Digestive', 'Orthopedic', 'Metabolic', 'Grooming'];
 
@@ -29,242 +32,264 @@ const Catalog: React.FC<CatalogProps> = ({ onSelectProduct, onAddToCart, onUpdat
     return products.filter(product => {
       const matchesSearch = !term || 
         product.name.toLowerCase().includes(term) || 
-        product.category.toLowerCase().includes(term) ||
-        product.formula.toLowerCase().includes(term);
-      
+        product.category.toLowerCase().includes(term);
       const matchesCategory = activeCategory === 'All' || product.category === activeCategory;
-      
       return matchesSearch && matchesCategory;
     });
   }, [searchTerm, activeCategory, products]);
 
   const displayedProducts = filteredProducts.slice(0, visibleCount);
 
+  const synthesizedCount = useMemo(() => {
+    return products.filter(p => p.image.startsWith('data:image')).length;
+  }, [products]);
+
   /**
-   * AUTO-SYNTHESIS ENGINE (IMMEDIATE MOCKUP MANIFESTATION)
-   * Automatically replaces the first 6 placeholder images with branded AI mockups.
-   * If a product already has a mockup (data URL), it can pass it as a base for refinement.
+   * SILENT INTEGRITY CHECK
+   * Triggers a small recovery task for the items currently on screen.
    */
   useEffect(() => {
-    const autoSynthesizeFirstItems = async () => {
-      // Find items that are still using generic Unsplash images
-      const targets = displayedProducts.slice(0, 6).filter(p => !p.image.startsWith('data:image'));
-      if (targets.length === 0) return;
+    const integrityCheck = async () => {
+      if (isRestoring) return;
+      
+      const missingInView = displayedProducts.filter(p => !p.image.startsWith('data:image'));
+      if (missingInView.length === 0) return;
 
-      console.log(`%c[AUTO-SYNTHESIS] Initiating immediate brand manifestation for ${targets.length} units...`, "color: #D4AF37; font-weight: bold;");
-
-      for (const product of targets) {
+      // Small background batch (max 4 at a time to stay under quota)
+      for (const product of missingInView.slice(0, 4)) {
+        if (shouldStop) break;
         try {
           const mockupUrl = await generateProductMockup(product.name, product.category, 'full', product.image);
-          if (mockupUrl) {
-            onUpdateProductImage(product.id, mockupUrl);
-          }
-        } catch (error) {
-          console.warn(`Auto-synthesis failed for ${product.id}`);
+          if (mockupUrl) onUpdateProductImage(product.id, mockupUrl);
+          await new Promise(res => setTimeout(res, 6000));
+        } catch (error: any) {
+          if (error?.message?.includes('DAILY_QUOTA')) break;
         }
       }
     };
 
-    const timer = setTimeout(autoSynthesizeFirstItems, 1000);
+    const timer = setTimeout(integrityCheck, 3500);
     return () => clearTimeout(timer);
-  }, [displayedProducts.length, onUpdateProductImage]);
+  }, [displayedProducts.length, activeCategory, onUpdateProductImage, isRestoring]);
 
   /**
-   * THE MASS SYNTHESIS ENGINE
-   * Iterates through the entire catalog to generate unique, branded mockups.
-   * Uses existing images as base to ensure the brand vision is preserved.
+   * MASTER RESTORATION PROTOCOL
+   * Systematically recovers every missing image in the project.
    */
-  const handleMassSynthesis = async () => {
-    if (isMassSynthesizing) return;
+  const handleMasterRestoration = async () => {
+    if (isRestoring) return;
     
-    // We synthesize everything that isn't already "Manifested" (data URL)
-    // or we can synthesize everything to re-apply the latest "NubaEqui" prompt logic.
     const targets = products.filter(p => !p.image.startsWith('data:image'));
     if (targets.length === 0) {
-      if (!confirm("All products are already synthesized. Re-synthesize all units with the new 9.0 Protocol?")) return;
-      targets.push(...products);
+      alert("Visual Integrity 100%. All Laboratory Archives are fully restored.");
+      return;
     }
 
-    setIsMassSynthesizing(true);
+    setIsRestoring(true);
     setShouldStop(false);
-    setSynthesisProgress({ current: 0, total: targets.length, currentName: targets[0].name });
+    setQuotaError(null);
+    setRestorationProgress({ current: 0, total: targets.length, currentName: targets[0].name, phase: 'Phase 1: Flagship Recovery' });
 
     for (let i = 0; i < targets.length; i++) {
       if (shouldStop) break;
-
       const product = targets[i];
-      setSynthesisProgress(prev => ({ ...prev, current: i + 1, currentName: product.name }));
-
+      
+      // Update phase name
+      const phaseName = i < 24 ? 'Phase 1: Flagship Recovery' : 'Phase 2: Bulk Archive Sync';
+      
+      setRestorationProgress(prev => ({ 
+        ...prev, 
+        current: i + 1, 
+        currentName: product.name,
+        phase: phaseName
+      }));
+      
       try {
-        // ALWAYS pass product.image as baseImage. If it's a data URL, Gemini 2.5 will refine it.
         const mockupUrl = await generateProductMockup(product.name, product.category, 'full', product.image);
-        if (mockupUrl) {
-          onUpdateProductImage(product.id, mockupUrl);
+        if (mockupUrl) onUpdateProductImage(product.id, mockupUrl);
+        
+        // Throttling logic: slower for first few to ensure quality, then slightly faster
+        const delay = i < 10 ? 9000 : 7000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } catch (error: any) {
+        if (error?.message?.includes('DAILY_QUOTA')) {
+          setQuotaError("Protocol Paused: Daily Gemini API Quota Reached. Stored visuals are safe in the Lab Vault.");
+          break;
         }
-        // Small delay to prevent API flooding and allow UI updates
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (error) {
-        console.error(`Synthesis failed for ${product.id}:`, error);
+        console.error(`Restoration failed for ${product.id}:`, error);
+        await new Promise(resolve => setTimeout(resolve, 15000)); 
       }
     }
-
-    setIsMassSynthesizing(false);
-    setSynthesisProgress({ current: 0, total: 0, currentName: '' });
+    setIsRestoring(false);
   };
 
-  const stopSynthesis = () => setShouldStop(true);
+  /**
+   * MASTER RESET (WIPE)
+   */
+  const handleWipeAndRestore = async () => {
+    const confirmed = window.confirm("WARNING: This will purge ALL generated images from the local database and restart the Restoration Protocol from scratch. Continue?");
+    if (!confirmed) return;
+    
+    await clearImages();
+    window.location.reload();
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
-      {/* Mass Synthesis Progress Overlay */}
-      {isMassSynthesizing && (
-        <div className="fixed inset-0 z-[500] bg-emerald-950/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-500">
-          <div className="max-w-2xl w-full bg-white rounded-[4rem] p-16 shadow-[0_80px_160px_-40px_rgba(0,0,0,0.5)] border border-white/20 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-stone-100">
+      {/* RESTORATION OVERLAY */}
+      {isRestoring && (
+        <div className="fixed inset-0 z-[600] bg-emerald-950/98 backdrop-blur-3xl flex items-center justify-center p-6">
+          <div className="max-w-3xl w-full bg-white rounded-[4rem] p-16 shadow-[0_100px_200px_rgba(0,0,0,0.6)] relative border border-[#D4AF37]/40 overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-4 bg-stone-100 overflow-hidden rounded-t-[4rem]">
               <div 
-                className="h-full bg-[#D4AF37] transition-all duration-1000 ease-out"
-                style={{ width: `${(synthesisProgress.current / synthesisProgress.total) * 100}%` }}
+                className="h-full bg-gradient-to-r from-emerald-900 via-[#D4AF37] to-emerald-900 transition-all duration-[2500ms] ease-in-out shadow-[0_0_20px_#D4AF37]"
+                style={{ width: `${(restorationProgress.current / restorationProgress.total) * 100}%` }}
               ></div>
             </div>
             
             <div className="text-center">
-              <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-10 border border-emerald-100">
-                <div className="w-12 h-12 border-4 border-emerald-900/20 border-t-emerald-900 rounded-full animate-spin"></div>
+              <div className="w-28 h-28 bg-emerald-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-inner relative">
+                <svg className="w-14 h-14 text-emerald-900 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeWidth="2" /></svg>
+                <div className="absolute -bottom-2 -right-2 bg-emerald-500 w-6 h-6 rounded-full border-4 border-white animate-ping"></div>
               </div>
               
-              <h2 className="text-xs font-black text-[#D4AF37] uppercase tracking-[0.6em] mb-4">Laboratory Batch Protocol</h2>
-              <h1 className="text-5xl font-bold text-stone-900 mb-8 tracking-tighter leading-none">
-                SYNTHESIZING <br />
-                <span className="italic font-serif">ARCHIVE ASSETS</span>
-              </h1>
+              <h2 className="text-xs font-black text-[#D4AF37] uppercase tracking-[1em] mb-4">Laboratory System Restore</h2>
+              <h1 className="text-6xl font-bold text-stone-900 mb-10 tracking-tighter">RECOVERING <br/>ARCHIVES</h1>
               
-              <div className="bg-stone-50 rounded-[2rem] p-8 mb-10 border border-stone-100">
-                <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Currently Processing</p>
-                <p className="text-xl font-bold text-emerald-950 truncate">{synthesisProgress.currentName}</p>
-                <div className="mt-6 flex justify-between items-center px-4">
-                   <span className="text-[9px] font-black text-stone-300 uppercase tracking-widest">{synthesisProgress.current} Units Complete</span>
-                   <span className="text-[9px] font-black text-stone-300 uppercase tracking-widest">{synthesisProgress.total} Units Total</span>
+              <div className="mb-12 p-10 bg-stone-50 rounded-[3rem] border border-stone-200">
+                <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-3">{restorationProgress.phase}</p>
+                <p className="text-2xl font-bold text-emerald-950 truncate px-4">{restorationProgress.currentName}</p>
+                
+                <div className="mt-10 flex justify-center items-center gap-16">
+                   <div className="text-center">
+                     <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mb-1">Restored</p>
+                     <p className="text-4xl font-black text-emerald-950">{restorationProgress.current}</p>
+                   </div>
+                   <div className="h-16 w-px bg-stone-200"></div>
+                   <div className="text-center">
+                     <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mb-1">Integrity Gap</p>
+                     <p className="text-4xl font-black text-[#D4AF37]">{restorationProgress.total - restorationProgress.current}</p>
+                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-4">
-                <p className="text-[10px] text-stone-400 font-medium italic mb-4">
-                  Molecular rendering is a computationally intensive process. Please remain on this protocol page until synthesis is finalized.
-                </p>
-                <button 
-                  onClick={stopSynthesis}
-                  className="mx-auto px-12 py-5 border-2 border-stone-100 text-stone-400 rounded-full text-[10px] font-black uppercase tracking-[0.3em] hover:bg-stone-50 hover:text-red-500 hover:border-red-100 transition-all"
-                >
-                  Terminate Batch Protocol
-                </button>
-              </div>
+              {quotaError ? (
+                <div className="bg-red-50 p-10 rounded-[2.5rem] border border-red-200 mb-10">
+                   <p className="text-red-700 font-bold text-sm leading-relaxed italic font-serif mb-6">"{quotaError}"</p>
+                   <button onClick={() => setIsRestoring(false)} className="px-12 py-5 bg-red-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl">Close Command Center</button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-6">
+                  <div className="flex items-center justify-center gap-4 text-emerald-600">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    <p className="text-[10px] font-black uppercase tracking-[0.5em]">Global Restructuring Active</p>
+                  </div>
+                  <button onClick={() => setShouldStop(true)} className="px-12 py-5 border-2 border-stone-200 text-stone-400 rounded-full text-[10px] font-black uppercase tracking-widest hover:text-red-600 hover:border-red-100 transition-all">
+                    Abort Restoration
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10 mb-16">
-        <div className="max-w-xl">
-          <h2 className="text-xs font-black text-emerald-900 uppercase tracking-[0.4em] mb-4">Laboratory Archives</h2>
-          <h1 className="text-6xl font-bold text-stone-900 mb-6 tracking-tighter">Molecular Catalog</h1>
-          <p className="text-xl text-stone-500 italic font-serif leading-relaxed">
-            Browsing <span className="text-stone-900 font-bold">{filteredProducts.length}</span> verified performance protocols.
-          </p>
+      {/* HEADER SECTION */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-12 mb-24">
+        <div>
+          <h2 className="text-xs font-black text-emerald-900 uppercase tracking-[0.5em] mb-6 flex items-center gap-4">
+             Archive Command
+             <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+          </h2>
+          <h1 className="text-[7rem] font-bold text-stone-900 mb-8 tracking-tighter leading-[0.85]">Visual <br/><span className="text-[#D4AF37] italic font-serif">Integrity</span></h1>
+          
+          <div className="flex items-center gap-8 mt-6">
+             <div className="bg-white px-8 py-5 rounded-[2rem] border border-stone-100 shadow-sm flex items-center gap-5">
+                <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]"></div>
+                <div>
+                  <p className="text-[10px] font-black text-emerald-950 uppercase tracking-widest">{synthesizedCount} Protocols Synced</p>
+                  <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest">Molecular Integrity Stable</p>
+                </div>
+             </div>
+             <div className="bg-white px-8 py-5 rounded-[2rem] border border-stone-100 shadow-sm flex items-center gap-5">
+                <div className={`w-3 h-3 rounded-full ${products.length - synthesizedCount === 0 ? 'bg-emerald-500' : 'bg-[#D4AF37] animate-pulse shadow-[0_0_10px_#D4AF37]'}`}></div>
+                <div>
+                  <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{products.length - synthesizedCount} Awaiting Restoration</p>
+                  <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest">Dossier Gap Detected</p>
+                </div>
+             </div>
+          </div>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto items-center">
+        <div className="flex flex-col sm:flex-row gap-6">
           <button 
-            onClick={handleMassSynthesis}
-            className="flex items-center gap-3 bg-[#D4AF37] text-emerald-950 px-8 py-5 rounded-[2rem] font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl group"
+            onClick={handleWipeAndRestore}
+            className="bg-white border-2 border-stone-100 text-stone-400 px-10 py-6 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all shadow-md active:scale-95"
           >
-            <svg className="w-5 h-5 group-hover:rotate-180 transition-transform duration-1000" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a2 2 0 00-1.96 1.414l-.722 2.166a2 2 0 00.547 2.155l1.638 1.638a2 2 0 002.155.547l2.166-.722a2 2 0 001.414-1.96l-.477-2.387a2 2 0 00-.547-1.022z" /></svg>
-            Synthesize Entire Archive
+             Purge Local Cache
           </button>
-          
-          <div className="relative flex-grow sm:flex-grow-0">
-            <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-              <svg className="h-4 w-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <input
-              type="text"
-              className="block w-full sm:w-[320px] pl-12 pr-6 py-4 bg-white border border-stone-100 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm text-sm font-medium text-stone-800 placeholder:text-stone-400"
-              placeholder="Search Archive Reference..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          <button 
+            onClick={handleMasterRestoration} 
+            disabled={isRestoring}
+            className="bg-emerald-950 text-[#D4AF37] px-16 py-8 rounded-full font-black text-xs uppercase tracking-[0.5em] hover:scale-105 transition-all shadow-[0_30px_60px_rgba(6,78,59,0.4)] active:scale-95 disabled:opacity-50 border border-emerald-900"
+          >
+            Restore Visual Archive
+          </button>
         </div>
       </div>
 
-      {/* Category Filter */}
-      <div className="flex flex-wrap gap-3 mb-12">
+      {/* FILTER BAR */}
+      <div className="flex flex-wrap gap-4 mb-20 bg-white/70 backdrop-blur-3xl p-6 rounded-[3.5rem] border border-stone-100 w-fit shadow-2xl">
         {categories.map(cat => (
           <button
             key={cat}
             onClick={() => {
               setActiveCategory(cat);
-              setVisibleCount(24);
+              setQuotaError(null);
             }}
-            className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${
-              activeCategory === cat 
-                ? 'bg-emerald-950 text-gold-500 border-emerald-950 shadow-lg' 
-                : 'bg-white text-stone-400 border-stone-100 hover:border-emerald-900/20'
-            }`}
-            style={activeCategory === cat ? { color: '#D4AF37' } : {}}
+            className={`px-12 py-5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === cat ? 'bg-emerald-950 text-[#D4AF37] shadow-xl scale-110' : 'bg-transparent text-stone-400 hover:text-emerald-950'}`}
           >
             {cat}
           </button>
         ))}
       </div>
 
-      {displayedProducts.length > 0 ? (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {displayedProducts.map(product => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                onClick={onSelectProduct}
-                onAddToCart={onAddToCart}
-                onUpdateImage={onUpdateProductImage}
-                formatPrice={formatPrice}
-              />
-            ))}
+      {/* ERROR MESSAGE */}
+      {quotaError && !isRestoring && (
+        <div className="mb-20 p-12 bg-orange-50 rounded-[4rem] border-2 border-orange-200 flex items-center gap-12 animate-in slide-in-from-top-10 shadow-2xl">
+          <div className="w-20 h-20 bg-orange-500 rounded-[2.5rem] flex items-center justify-center shrink-0 shadow-[0_20px_40px_rgba(249,115,22,0.4)]">
+            <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" strokeWidth="2.5"/></svg>
           </div>
-          
-          {visibleCount < filteredProducts.length && (
-            <div className="mt-24 text-center">
-              <div className="inline-flex flex-col items-center">
-                <p className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.3em] mb-6">
-                  Showing {visibleCount} of {filteredProducts.length} Results
-                </p>
-                <button 
-                  onClick={() => setVisibleCount(prev => prev + 24)}
-                  className="px-12 py-5 bg-emerald-950 text-white rounded-full font-black text-xs uppercase tracking-[0.3em] hover:bg-emerald-900 transition-all shadow-2xl hover:-translate-y-1"
-                  style={{ color: '#D4AF37' }}
-                >
-                  Retrieve Next 24 Formulations
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="py-40 text-center bg-white rounded-[4rem] border border-stone-100 shadow-sm">
-          <div className="w-24 h-24 bg-stone-50 rounded-full flex items-center justify-center mx-auto mb-8 text-stone-200">
-             <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+          <div>
+            <p className="text-2xl font-black text-orange-950 uppercase tracking-widest mb-2">Restoration Throttled: Quota Check</p>
+            <p className="text-lg font-bold text-orange-800 italic font-serif leading-relaxed max-w-4xl">
+              The Gemini API Daily Protocol Limit has been reached. Stored mockups are safely archived in the Lab Vault. Restoration sequence will automatically resume in the next cycle.
+            </p>
           </div>
-          <h3 className="text-3xl font-bold text-stone-900 mb-4 tracking-tighter">Null Reference Found</h3>
-          <p className="text-stone-500 mb-10 italic font-serif">No products match your specific laboratory query.</p>
-          <button 
-            onClick={() => { setSearchTerm(''); setActiveCategory('All'); }}
-            className="text-emerald-900 font-black text-[10px] uppercase tracking-widest border-b-2 border-emerald-900 pb-1"
-          >
-            Clear All Archive Filters
+        </div>
+      )}
+
+      {/* GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-16">
+        {displayedProducts.map(product => (
+          <ProductCard 
+            key={product.id} 
+            product={product} 
+            onClick={onSelectProduct}
+            onAddToCart={onAddToCart}
+            onUpdateImage={onUpdateProductImage}
+            onInquiry={onInquiry}
+            formatPrice={formatPrice}
+          />
+        ))}
+      </div>
+      
+      {/* LOAD MORE */}
+      {visibleCount < filteredProducts.length && (
+        <div className="mt-48 text-center pb-32">
+          <button onClick={() => setVisibleCount(v => v + 24)} className="px-28 py-12 bg-emerald-950 text-[#D4AF37] rounded-full font-black text-sm uppercase tracking-[0.7em] shadow-[0_50px_100px_rgba(6,78,59,0.3)] hover:scale-110 transition-all active:scale-95 border border-emerald-900 group">
+            Access Deep Archive Layers
+            <span className="block text-[10px] opacity-40 mt-3 group-hover:opacity-80 transition-opacity">Decrypting Further Protocols...</span>
           </button>
         </div>
       )}

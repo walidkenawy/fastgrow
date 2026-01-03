@@ -1,123 +1,75 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Navbar from './components/Navbar';
 import SettingsBar from './components/SettingsBar';
 import Hero from './components/Hero';
 import AIDietConsultant from './components/AIDietConsultant';
 import Catalog from './components/Catalog';
-import ProductCard from './components/ProductCard';
 import ContactForm from './components/ContactForm';
 import ProductDetail from './components/ProductDetail';
 import Cart from './components/Cart';
 import Blog from './components/Blog';
 import Events from './components/Events';
 import FloatingChat from './components/FloatingChat';
+import ProductCard from './components/ProductCard';
+import InquiryModal from './components/InquiryModal';
+import HQMap from './components/HQMap';
+import B2BDiscovery from './components/B2BDiscovery';
+import ExhibitorDiscovery from './components/ExhibitorDiscovery';
 import { PRODUCTS, BLOG_POSTS, EQUINE_EVENTS } from './constants';
-import { Product, CartItem, Currency, Language, BlogPost, EquineEvent } from './types';
-import { getExchangeRates, translateContentBatch } from './services/geminiService';
+import { Product, CartItem, Currency, Language } from './types';
+import { getExchangeRates, generateProductMockup } from './services/geminiService';
 import { getAllImages, saveImage } from './services/dbService';
+
+const FAQ_DATA = [
+  { q: "How are the protocols lab-verified?", a: "Each Nobel Spirit formulation undergoes a 48-hour molecular assay to ensure batch stability and nutrient density." },
+  { q: "What is the delivery timeline for international circuits?", a: "We maintain regional hubs in Warsaw, Riyadh, and Dubai, allowing for 72-hour delivery to major international pavilions." },
+  { q: "Can I customize a molecular profile?", a: "Yes, our Bio-Advisor tool integrated with Gemini Vision can help synthesize unique dietary requirements based on bloodwork analysis." }
+];
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
-  
-  // Global Settings
+  const [inquiryProduct, setInquiryProduct] = useState<Product | null>(null);
   const [currency, setCurrency] = useState<Currency>({ code: 'PLN', symbol: 'zł', label: 'Polish Zloty' });
   const [language, setLanguage] = useState<Language>({ code: 'en', name: 'English', flag: '🇬🇧' });
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({ PLN: 1 });
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  // Persistence Registry for AI Assets - Initialized as empty, populated via IndexedDB
+  const [isInitializing, setIsInitializing] = useState(true);
   const [customImages, setCustomImages] = useState<Record<string, string>>({});
 
-  // Base Content State (Linguistic versions)
-  const [baseProducts, setBaseProducts] = useState<Product[]>(PRODUCTS);
-  const [baseBlogs, setBaseBlogs] = useState<BlogPost[]>(BLOG_POSTS);
-  const [baseEvents, setBaseEvents] = useState<EquineEvent[]>(EQUINE_EVENTS);
-
-  // Persistence Load (IndexedDB is async)
+  // INITIALIZE LOCAL ASSETS
   useEffect(() => {
-    const loadImages = async () => {
+    const initApp = async () => {
+      setIsInitializing(true);
       try {
-        const storedImages = await getAllImages();
-        setCustomImages(storedImages);
+        const [images, rates] = await Promise.all([
+          getAllImages(),
+          getExchangeRates()
+        ]);
+        setCustomImages(images);
+        setExchangeRates(rates);
       } catch (err) {
-        console.error("Failed to load images from IndexedDB", err);
+        console.error("Initialization Protocol Failure", err);
+      } finally {
+        setIsInitializing(false);
       }
     };
-    loadImages();
+    initApp();
   }, []);
 
-  /**
-   * THE UNIFIED CONTENT ENGINE
-   * This useMemo ensures that whenever customImages OR the linguistic base content changes,
-   * the final 'translated' version displayed to the user is immediately updated.
-   */
   const translatedProducts = useMemo(() => 
-    baseProducts.map(p => ({ ...p, image: customImages[p.id] || p.image })), 
-  [baseProducts, customImages]);
-
-  const translatedBlogs = useMemo(() => 
-    baseBlogs.map(b => ({ ...b, image: customImages[b.id] || b.image })), 
-  [baseBlogs, customImages]);
+    PRODUCTS.map(p => ({ ...p, image: customImages[p.id] || p.image })), 
+  [customImages]);
 
   const translatedEvents = useMemo(() => 
-    baseEvents.map(e => ({ ...e, image: customImages[e.id] || e.image })), 
-  [baseEvents, customImages]);
+    EQUINE_EVENTS.map(e => ({ ...e, image: customImages[e.id] || e.image })),
+  [customImages]);
 
-  // Global Image Update Handler - Triggers immediate state update and async DB save
   const handleUpdateImage = async (id: string, newImage: string) => {
-    // 1. Update State Immediately for instant UI response
     setCustomImages(prev => ({ ...prev, [id]: newImage }));
-    
-    // 2. Persist to IndexedDB in background
-    try {
-      await saveImage(id, newImage);
-    } catch (err) {
-      console.error("Failed to save image to IndexedDB", err);
-    }
+    await saveImage(id, newImage);
   };
-
-  // Translation Sync Logic
-  useEffect(() => {
-    const syncLinguistics = async () => {
-      if (language.code === 'en') {
-        setBaseProducts(PRODUCTS);
-        setBaseBlogs(BLOG_POSTS);
-        setBaseEvents(EQUINE_EVENTS);
-        return;
-      }
-
-      setIsSyncing(true);
-      try {
-        const [pBatch, bBatch, eBatch] = await Promise.all([
-          translateContentBatch(PRODUCTS.slice(0, 12), language.name, 'product'),
-          translateContentBatch(BLOG_POSTS.slice(0, 10), language.name, 'blog'),
-          translateContentBatch(EQUINE_EVENTS.slice(0, 10), language.name, 'event')
-        ]);
-
-        setBaseProducts(pBatch);
-        setBaseBlogs(bBatch);
-        setBaseEvents(eBatch);
-      } catch (err) {
-        console.error("Translation Sync Failed", err);
-      } finally {
-        setIsSyncing(false);
-      }
-    };
-
-    syncLinguistics();
-  }, [language]);
-
-  // Initialization: Fetch rates
-  useEffect(() => {
-    const initRates = async () => {
-      const rates = await getExchangeRates();
-      setExchangeRates(rates);
-    };
-    initRates();
-  }, []);
 
   const handleProductSelect = (id: string) => {
     setSelectedProductId(id);
@@ -129,11 +81,7 @@ const App: React.FC = () => {
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
       if (existing) {
-        return prev.map(item => 
-          item.product.id === product.id 
-            ? { ...item, quantity: item.quantity + quantity } 
-            : item
-        );
+        return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + quantity } : item);
       }
       return [...prev, { product, quantity }];
     });
@@ -141,10 +89,7 @@ const App: React.FC = () => {
 
   const updateCartQuantity = (productId: string, delta: number) => {
     setCart(prev => prev.map(item => {
-      if (item.product.id === productId) {
-        const newQty = Math.max(0, item.quantity + delta);
-        return { ...item, quantity: newQty };
-      }
+      if (item.product.id === productId) return { ...item, quantity: Math.max(0, item.quantity + delta) };
       return item;
     }).filter(item => item.quantity > 0));
   };
@@ -152,131 +97,142 @@ const App: React.FC = () => {
   const formatPrice = (priceInPln: number) => {
     const rate = exchangeRates[currency.code] || 1;
     const converted = priceInPln * rate;
-    return `${currency.symbol} ${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `${currency.symbol} ${converted.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
   };
 
-  const renderContent = () => {
-    switch (currentPage) {
-      case 'home':
-        return (
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-emerald-950 flex flex-col items-center justify-center text-center p-6">
+        <div className="w-24 h-24 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin mb-8"></div>
+        <h1 className="text-white text-xs font-black uppercase tracking-[0.5em] animate-pulse">Loading Elite Archive...</h1>
+        <p className="text-[#D4AF37] text-[9px] mt-4 uppercase tracking-widest">Optimizing Molecular Profiles</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-stone-50 flex flex-col">
+      <SettingsBar 
+        currentCurrency={currency} 
+        onCurrencyChange={setCurrency} 
+        currentLanguage={language} 
+        onLanguageChange={setLanguage} 
+        isSyncing={false} 
+      />
+      <Navbar 
+        onNavigate={setCurrentPage} 
+        currentPage={currentPage} 
+        cart={cart} 
+        currency={currency} 
+        formatPrice={formatPrice} 
+        onUpdateCart={updateCartQuantity} 
+      />
+
+      <main className="flex-grow">
+        {currentPage === 'home' && (
           <>
-            <Hero onStart={() => setCurrentPage('advisor')} onUpdateImage={handleUpdateImage} currentImage={customImages['hero_bg']} />
+            <Hero 
+              onStart={() => setCurrentPage('advisor')} 
+              onExplore={() => setCurrentPage('catalog')}
+              onUpdateImage={handleUpdateImage} 
+              currentImage={customImages['hero_bg']} 
+            />
             <section className="py-32 bg-white">
               <div className="max-w-7xl mx-auto px-4">
-                <div className="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
-                  <div className="max-w-2xl">
-                    <h2 className="text-xs font-black text-emerald-900 uppercase tracking-[0.5em] mb-4">Laboratory Selection</h2>
-                    <h1 className="text-6xl font-bold text-stone-900 mb-6 tracking-tighter">Performance Protocol Archive</h1>
-                    <p className="text-xl text-stone-500 italic font-serif">Our curated repository of elite biological solutions for the international sport horse.</p>
-                  </div>
-                  <button 
-                    onClick={() => setCurrentPage('catalog')}
-                    className="bg-emerald-950 text-white px-10 py-5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl flex items-center group transition-all"
-                    style={{color: '#D4AF37'}}
-                  >
-                    Enter the Lab
-                    <svg className="w-5 h-5 ml-4 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                    </svg>
-                  </button>
+                <div className="flex items-center justify-between mb-16">
+                   <div>
+                    <h2 className="text-xs font-black text-emerald-900 uppercase tracking-[0.5em] mb-4">Elite Archive</h2>
+                    <h1 className="text-6xl font-bold text-stone-900 tracking-tighter">Live Protocols</h1>
+                   </div>
+                   <button onClick={() => setCurrentPage('catalog')} className="text-emerald-950 font-black text-[10px] uppercase tracking-widest flex items-center gap-3 group">
+                      View Entire Collection
+                      <svg className="w-4 h-4 transition-transform group-hover:translate-x-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 8l4 4m0 0l-4 4m4-4H3" strokeWidth="3"/></svg>
+                   </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
                   {translatedProducts.slice(0, 3).map(product => (
-                    <ProductCard 
-                      key={product.id} 
-                      product={product} 
-                      onClick={handleProductSelect}
-                      onAddToCart={addToCart}
-                      onUpdateImage={handleUpdateImage}
-                      formatPrice={formatPrice}
-                    />
+                    <ProductCard key={product.id} product={product} onClick={handleProductSelect} onAddToCart={addToCart} onInquiry={setInquiryProduct} onUpdateImage={handleUpdateImage} formatPrice={formatPrice} />
                   ))}
                 </div>
               </div>
             </section>
           </>
-        );
-      case 'advisor':
-        return <AIDietConsultant onSelectProduct={handleProductSelect} onAddToCart={addToCart} onUpdateProductImage={handleUpdateImage} formatPrice={formatPrice} products={translatedProducts} />;
-      case 'catalog':
-        return <Catalog onSelectProduct={handleProductSelect} onAddToCart={addToCart} onUpdateProductImage={handleUpdateImage} formatPrice={formatPrice} products={translatedProducts} />;
-      case 'events':
-        return <Events events={translatedEvents} onUpdateImage={handleUpdateImage} />;
-      case 'blog':
-        return <Blog blogs={translatedBlogs} onUpdateImage={handleUpdateImage} />;
-      case 'contact':
-        return <ContactForm />;
-      case 'cart':
-        return <Cart items={cart} onUpdateQuantity={updateCartQuantity} onNavigate={setCurrentPage} formatPrice={formatPrice} currency={currency} />;
-      case 'product-detail':
-        const product = translatedProducts.find(p => p.id === selectedProductId);
-        return product ? (
-          <ProductDetail 
-            product={product} 
-            onBack={() => setCurrentPage('catalog')} 
-            onAddToCart={addToCart}
-            onUpdateImage={handleUpdateImage}
-            formatPrice={formatPrice}
-          />
-        ) : null;
-      default:
-        return <div className="p-20 text-center">Protocol Not Found</div>;
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-stone-50 flex flex-col">
-      <SettingsBar 
-        currentCurrency={currency}
-        onCurrencyChange={setCurrency}
-        currentLanguage={language}
-        onLanguageChange={setLanguage}
-        isSyncing={isSyncing}
-      />
-      <Navbar 
-        onNavigate={setCurrentPage} 
-        currentPage={currentPage} 
-        cartCount={cart.reduce((acc, item) => acc + item.quantity, 0)}
-      />
-      <main className="flex-grow">
-        {renderContent()}
+        )}
+        {currentPage === 'catalog' && <Catalog onSelectProduct={handleProductSelect} onAddToCart={addToCart} onUpdateProductImage={handleUpdateImage} onInquiry={setInquiryProduct} formatPrice={formatPrice} products={translatedProducts} />}
+        {currentPage === 'advisor' && <AIDietConsultant onSelectProduct={handleProductSelect} onAddToCart={addToCart} onUpdateProductImage={handleUpdateImage} formatPrice={formatPrice} products={translatedProducts} />}
+        {currentPage === 'cart' && <Cart items={cart} onUpdateQuantity={updateCartQuantity} onNavigate={setCurrentPage} formatPrice={formatPrice} currency={currency} onClearCart={() => setCart([])} />}
+        {currentPage === 'product-detail' && translatedProducts.find(p => p.id === selectedProductId) && <ProductDetail product={translatedProducts.find(p => p.id === selectedProductId)!} onBack={() => setCurrentPage('catalog')} onAddToCart={addToCart} onUpdateImage={handleUpdateImage} formatPrice={formatPrice} />}
+        {currentPage === 'events' && <Events events={translatedEvents} onUpdateImage={handleUpdateImage} />}
+        {currentPage === 'blog' && <Blog blogs={BLOG_POSTS} onUpdateImage={handleUpdateImage} />}
+        {currentPage === 'contact' && <ContactForm />}
+        {currentPage === 'b2b-discovery' && <B2BDiscovery />}
+        {currentPage === 'exhibitor-discovery' && <ExhibitorDiscovery />}
       </main>
+
+      {/* Map Section for Headquarters Page */}
+      {currentPage === 'home' && (
+        <section className="bg-stone-50 py-24 border-t border-stone-100">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="mb-12">
+              <h2 className="text-xs font-black text-emerald-900 uppercase tracking-[0.5em] mb-4">Global Logistics</h2>
+              <h1 className="text-5xl font-bold text-stone-900 tracking-tighter">Warsaw Lab Facility</h1>
+            </div>
+            <HQMap />
+          </div>
+        </section>
+      )}
+
       <footer className="bg-emerald-950 text-stone-400 py-24">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-16">
           <div className="col-span-2">
             <h2 className="text-4xl font-bold text-white mb-6">Nobel Spirit® Labs</h2>
-            <p className="text-stone-500 leading-relaxed italic font-serif text-lg">
-              International benchmark for equine performance bio-technology. Our lab-verified molecular nutrition protocols are engineering victory for the world's elite sport horse community.
-            </p>
+            <p className="italic font-serif text-lg leading-relaxed mb-10">Established 1984. Engineering victory for the international elite via precision molecular nutrition.</p>
+            <div className="space-y-4">
+              <h4 className="text-white text-[10px] font-black uppercase tracking-widest">Protocol FAQ</h4>
+              {FAQ_DATA.map((faq, i) => (
+                <details key={i} className="group border-b border-white/10 pb-4">
+                  <summary className="cursor-pointer font-bold text-xs uppercase tracking-widest list-none group-hover:text-white transition-colors">{faq.q}</summary>
+                  <p className="mt-4 text-[11px] leading-relaxed italic">{faq.a}</p>
+                </details>
+              ))}
+            </div>
           </div>
           <div>
-            <h4 className="text-white text-[10px] font-black uppercase tracking-widest mb-6">Archive Access</h4>
+            <h4 className="text-white text-[10px] font-black uppercase tracking-widest mb-6">Quick Protocols</h4>
             <ul className="space-y-4 text-xs font-bold uppercase tracking-widest">
-              <li><button onClick={() => setCurrentPage('catalog')} className="hover:text-gold-500 transition-colors">Molecular Catalog</button></li>
-              <li><button onClick={() => setCurrentPage('blog')} className="hover:text-gold-500 transition-colors">Research Repository</button></li>
-              <li><button onClick={() => setCurrentPage('events')} className="hover:text-gold-500 transition-colors">Global Events</button></li>
+              <li><button onClick={() => setCurrentPage('catalog')}>Catalog</button></li>
+              <li><button onClick={() => setCurrentPage('advisor')}>Advisor</button></li>
+              <li><button onClick={() => setCurrentPage('blog')}>Research</button></li>
+              <li>
+                <button 
+                  onClick={() => setCurrentPage('b2b-discovery')}
+                  className="text-[#D4AF37] flex items-center gap-2 hover:brightness-110"
+                >
+                  B2B Partner Discovery
+                  <span className="bg-[#D4AF37] text-emerald-950 text-[8px] px-1.5 py-0.5 rounded-full">NEW</span>
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => setCurrentPage('exhibitor-discovery')}
+                  className="text-[#D4AF37] flex items-center gap-2 hover:brightness-110"
+                >
+                  Connect with Exhibitors
+                  <span className="bg-[#D4AF37] text-emerald-950 text-[8px] px-1.5 py-0.5 rounded-full">ACTIVE</span>
+                </button>
+              </li>
             </ul>
           </div>
           <div>
-            <h4 className="text-white text-[10px] font-black uppercase tracking-widest mb-6">Legal Metadata</h4>
-            <ul className="space-y-4 text-xs font-bold uppercase tracking-widest">
-              <li>Privacy Protocol</li>
-              <li>Terms of Logistics</li>
-              <li>Lab Certifications</li>
-            </ul>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-4 mt-20 pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-[10px] font-black uppercase tracking-[0.3em]">
-          <span>© 1984-2026 Nobel Spirit® Labs. All rights reserved.</span>
-          <div className="flex gap-8 mt-6 md:mt-0">
-             <span>Riyadh</span>
-             <span>Warsaw</span>
-             <span>Dubai</span>
-             <span>Kentucky</span>
+            <h4 className="text-white text-[10px] font-black uppercase tracking-widest mb-6">Contact Lab</h4>
+            <p className="text-sm font-bold mb-4">+48 739 256 482</p>
+            <p className="text-xs">Warsaw, Poland</p>
+            <p className="text-xs mt-2">info@nobelspiritlabs.store</p>
           </div>
         </div>
       </footer>
       <FloatingChat />
+      <InquiryModal product={inquiryProduct} onClose={() => setInquiryProduct(null)} />
     </div>
   );
 };

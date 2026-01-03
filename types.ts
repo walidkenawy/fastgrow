@@ -1,7 +1,7 @@
 
 export interface Product {
   id: string;
-  sku: string; // Added for barcode generation
+  sku: string;
   name: string;
   category: 'Performance' | 'Digestive' | 'Orthopedic' | 'Metabolic' | 'Grooming';
   shortDescription: string;
@@ -39,13 +39,32 @@ export interface EquineEvent {
   title: string;
   date: string;
   location: string;
-  region: 'Europe' | 'Middle East' | 'Americas' | 'Asia';
+  region: 'Europe' | 'Middle East' | 'Americas' | 'Asia' | 'Global';
   category: string;
+  discipline?: string;
   description: string;
   image: string;
   registrationUrl?: string;
+  website?: string;
+  linkedin?: string;
   contactEmail?: string;
   contactPhone?: string;
+  partner?: string;
+  bookingInfo?: string;
+  cost?: string;
+}
+
+export interface Exhibitor {
+  id: string;
+  name: string;
+  continent: string;
+  country: string;
+  city: string;
+  eventAffiliation: string;
+  industryType: string;
+  phone: string;
+  email: string;
+  website: string;
 }
 
 export type CurrencyCode = 'PLN' | 'USD' | 'EUR' | 'GBP' | 'SAR' | 'AED';

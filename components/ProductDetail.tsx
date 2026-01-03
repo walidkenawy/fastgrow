@@ -4,6 +4,7 @@ import { Product } from '../types';
 import { generateProductMockup, getProductIntelligence } from '../services/geminiService';
 import IntelligenceDrawer from './IntelligenceDrawer';
 import MolecularFactSheet from './MolecularFactSheet';
+import InquiryForm from './InquiryForm';
 
 interface ProductDetailProps {
   product: Product;
@@ -104,7 +105,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
           Back to Archives
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-start mb-24">
           <div className="space-y-10 lg:sticky lg:top-32">
             <div className="relative aspect-square rounded-[3rem] overflow-hidden shadow-2xl bg-white border-[12px] border-white">
               {isGenerating && (
@@ -218,6 +219,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onAddToC
               )}
             </div>
           </div>
+        </div>
+
+        {/* Global Inquiry Form Embedded at Bottom */}
+        <div className="max-w-4xl mx-auto">
+          <InquiryForm product={product} embedded />
         </div>
       </div>
       <IntelligenceDrawer isOpen={isIntelligenceOpen} onClose={() => setIsIntelligenceOpen(false)} title={product.name} category={product.category} data={intelligenceData} isLoading={isSyncingIntelligence} />
